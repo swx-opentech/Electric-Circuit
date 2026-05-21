@@ -1,0 +1,175 @@
+diff --git a/src/com/lushprojects/circuitjs1/client/CirSim.java b/src/com/lushprojects/circuitjs1/client/CirSim.java
+index 6d85661..710cb76 100644
+--- a/src/com/lushprojects/circuitjs1/client/CirSim.java
++++ b/src/com/lushprojects/circuitjs1/client/CirSim.java
+@@ -218,6 +218,7 @@ MouseOutHandler, MouseWheelHandler {
+     Vector<Adjustable> adjustables;
+ //    Vector setupList;
+     CircuitElm dragElm, menuElm, stopElm;
++    CircuitElm elmArr[];
+     private CircuitElm mouseElm=null;
+     boolean didSwitch = false;
+     int mousePost = -1;
+@@ -1526,6 +1527,7 @@ MouseOutHandler, MouseWheelHandler {
+ 	    } else {
+ 	    	info[0] = "t = " + CircuitElm.getTimeText(t);
+ 	    	info[1] = LS("time step = ") + CircuitElm.getTimeText(timeStep);
++	    	info[2] = "matrix size = " + circuitMatrixSize;
+ 	    }
+ 	    if (hintType != -1) {
+ 		for (i = 0; info[i] != null; i++)
+@@ -2278,6 +2280,12 @@ MouseOutHandler, MouseWheelHandler {
+ 		return;
+ 	    }
+ 	}
++	
++	// copy elmList to an array to avoid a bunch of calls to canCast()
++	elmArr = new CircuitElm[elmList.size()];
++	for (i = 0; i != elmList.size(); i++)
++	    elmArr[i] = elmList.get(i);
++	
+ 	needsStamp = false;
+     }
+ 
+@@ -2702,6 +2710,58 @@ MouseOutHandler, MouseWheelHandler {
+     boolean converged;
+     int subIterations;
+     
++    void startIterations() {
++	int i;
++	for (i = 0; i != elmArr.length; i++)
++	    elmArr[i].startIteration();
++    }
++    
++    void subiterJunk() {
++	int i, j;
++	for (i = 0; i != circuitMatrixSize; i++)
++	    circuitRightSide[i] = origRightSide[i];
++	if (circuitNonLinear) {
++	    for (i = 0; i != circuitMatrixSize; i++)
++		for (j = 0; j != circuitMatrixSize; j++)
++		    circuitMatrix[i][j] = origMatrix[i][j];
++	}
++	for (i = 0; i != elmArr.length; i++)
++	    elmArr[i].doStep();
++    }
++
++    void checkForNan() {
++	int i, j;
++	// we only do this for debugging purposes
++	if (circuitMatrixSize > 10)
++	    return;
++	for (j = 0; j != circuitMatrixSize; j++) {
++	    for (i = 0; i != circuitMatrixSize; i++) {
++		double x = circuitMatrix[i][j];
++		if (Double.isNaN(x) || Double.isInfinite(x)) {
++		    stop("nan/infinite matrix!", null);
++		    console("circuitMatrix " + i + " " + j + " is " + x);
++		    return;
++		}
++	    }
++	}
++
++    }
++    
++    void stepFinishedJunk() {
++	int i;
++	boolean delayWireProcessing = true; // canDelayWireProcessing();
++	for (i = 0; i != elmArr.length; i++)
++	    elmArr[i].stepFinished();
++	    if (!delayWireProcessing)
++		calcWireCurrents();
++	    for (i = 0; i != scopeCount; i++)
++	    	scopes[i].timeStep();
++/*	    for (i=0; i != elmList.size(); i++)
++		if (getElm(i) instanceof ScopeElm)
++		    ((ScopeElm)getElm(i)).stepScope();*/ // need list of scopes
++
++    }
++    
+     void runCircuit(boolean didAnalyze) {
+ 	if (circuitMatrix == null || elmList.size() == 0) {
+ 	    circuitMatrix = null;
+@@ -2742,10 +2802,7 @@ MouseOutHandler, MouseWheelHandler {
+ 	    }
+ 	    
+ 	    int i, j, subiter;
+-	    for (i = 0; i != elmList.size(); i++) {
+-		CircuitElm ce = getElm(i);
+-		ce.startIteration();
+-	    }
++	    startIterations();
+ 	    steps++;
+ 	    int subiterCount = (adjustTimeStep && timeStep/2 > minTimeStep) ? 100 : 5000;
+ 	    for (subiter = 0; subiter != subiterCount; subiter++) {
+@@ -2753,31 +2810,12 @@ MouseOutHandler, MouseWheelHandler {
+ 		subIterations = subiter;
+ //		if (t % .030 < .002 && timeStep > 1e-6)  // force nonconvergence for debugging
+ //		    converged = false;
+-		for (i = 0; i != circuitMatrixSize; i++)
+-		    circuitRightSide[i] = origRightSide[i];
+-		if (circuitNonLinear) {
+-		    for (i = 0; i != circuitMatrixSize; i++)
+-			for (j = 0; j != circuitMatrixSize; j++)
+-			    circuitMatrix[i][j] = origMatrix[i][j];
+-		}
+-		for (i = 0; i != elmList.size(); i++) {
+-		    CircuitElm ce = getElm(i);
+-		    ce.doStep();
+-		}
++		subiterJunk();
+ 		if (stopMessage != null)
+ 		    return;
+ 		boolean printit = debugprint;
+ 		debugprint = false;
+-		for (j = 0; j != circuitMatrixSize; j++) {
+-		    for (i = 0; i != circuitMatrixSize; i++) {
+-			double x = circuitMatrix[i][j];
+-			if (Double.isNaN(x) || Double.isInfinite(x)) {
+-			    stop("nan/infinite matrix!", null);
+-			    console("circuitMatrix " + i + " " + j + " is " + x);
+-			    return;
+-			}
+-		    }
+-		}
++		checkForNan();
+ 		if (printit) {
+ 		    for (j = 0; j != circuitMatrixSize; j++) {
+ 			String x = "";
+@@ -2834,15 +2872,7 @@ MouseOutHandler, MouseWheelHandler {
+ 		timeStepAccum -= maxTimeStep;
+ 		timeStepCount++;
+ 	    }
+-	    for (i = 0; i != elmList.size(); i++)
+-		getElm(i).stepFinished();
+-	    if (!delayWireProcessing)
+-		calcWireCurrents();
+-	    for (i = 0; i != scopeCount; i++)
+-	    	scopes[i].timeStep();
+-	    for (i=0; i != elmList.size(); i++)
+-		if (getElm(i) instanceof ScopeElm)
+-		    ((ScopeElm)getElm(i)).stepScope();
++	    stepFinishedJunk();
+ 	    callTimeStepHook();
+ 	    // save last node voltages so we can restart the next iteration if necessary
+ 	    for (i = 0; i != lastNodeVoltages.length; i++)
+@@ -2893,15 +2923,18 @@ MouseOutHandler, MouseWheelHandler {
+     // set node voltages in each element given an array of node voltages
+     void setNodeVoltages(double nv[]) {
+ 	int j, k;
++	int links = 0;
+ 	for (j = 0; j != nv.length; j++) {
+ 	    double res = nv[j];
+ 	    CircuitNode cn = getCircuitNode(j+1);
+ 	    for (k = 0; k != cn.links.size(); k++) {
+-		CircuitNodeLink cnl = (CircuitNodeLink)
++		CircuitNodeLink cnl = //(CircuitNodeLink)
+ 			cn.links.elementAt(k);
+ 		cnl.elm.setNodeVoltage(cnl.num, res);
++		links++;
+ 	    }
+ 	}
++	console("snv j = " + nv.length + " lk = " + links);
+     }
+     
+     // we removed wires from the matrix to speed things up.  in order to display wire currents,

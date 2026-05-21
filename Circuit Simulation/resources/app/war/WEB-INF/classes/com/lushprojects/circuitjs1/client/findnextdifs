@@ -1,0 +1,53 @@
+diff --git a/src/com/lushprojects/circuitjs1/client/CirSim.java b/src/com/lushprojects/circuitjs1/client/CirSim.java
+index 6a6522d..5d1571f 100644
+--- a/src/com/lushprojects/circuitjs1/client/CirSim.java
++++ b/src/com/lushprojects/circuitjs1/client/CirSim.java
+@@ -696,6 +696,7 @@ MouseOutHandler, MouseWheelHandler {
+ 	elmMenuBar.addItem(elmFlipMenuItem = new MenuItem(LS("Swap Terminals"),new MyCommand("elm","flip")));
+ 	elmMenuBar.addItem(elmSplitMenuItem = menuItemWithShortcut("", LS("Split Wire"), LS(ctrlMetaKey + "click"), new MyCommand("elm","split")));
+ 	elmMenuBar.addItem(elmSliderMenuItem = new MenuItem(LS("Sliders..."),new MyCommand("elm","sliders")));
++	elmMenuBar.addItem(new MenuItem(LS("Find Next"),new MyCommand("elm","findnext")));
+ 
+ 	scopePopupMenu = new ScopePopupMenu();
+ 
+@@ -3075,6 +3076,8 @@ MouseOutHandler, MouseWheelHandler {
+     	}
+     	if (item=="flip")
+     	    doFlip();
++    	if (item=="findnext")
++    	    doFindNext();
+     	if (item=="split")
+     	    doSplit(menuElm);
+     	if (item=="selectAll")
+@@ -4064,6 +4067,31 @@ MouseOutHandler, MouseWheelHandler {
+     	needAnalyze();
+     }
+     
++    void doFindNext() {
++        console("find next " + mouseElm + " " + transform);
++        if (!(menuElm instanceof LabeledNodeElm))
++            return;
++        String name = ((LabeledNodeElm) menuElm).text;
++        int i;
++        for (i = 0; i != elmList.size(); i++)
++            if (elmList.get(i) == menuElm)
++                break;
++        int starti = i;
++        for (i++; i != starti; i++) {
++            if (i == elmList.size())
++                i = 0;
++            CircuitElm ce = elmList.get(i);
++            if (ce instanceof LabeledNodeElm && ((LabeledNodeElm)ce).text == name) {
++                int dx = ce.x-menuElm.x;
++                int dy = ce.y-menuElm.y;
++		ce.setSelected(true);
++		transform[4] -= dx*transform[0];
++		transform[5] -= dy*transform[0];
++                break;
++            }
++        }
++    }
++
+     void doSplit(CircuitElm ce) {
+ 	int x = snapGrid(inverseTransformX(menuX));
+ 	int y = snapGrid(inverseTransformY(menuY));

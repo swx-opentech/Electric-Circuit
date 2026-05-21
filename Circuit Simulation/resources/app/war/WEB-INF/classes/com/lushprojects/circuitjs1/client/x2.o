@@ -1,0 +1,40 @@
+diff --git a/src/com/lushprojects/circuitjs1/client/ChipElm.java b/src/com/lushprojects/circuitjs1/client/ChipElm.java
+index 4b57590..0cc5e47 100644
+--- a/src/com/lushprojects/circuitjs1/client/ChipElm.java
++++ b/src/com/lushprojects/circuitjs1/client/ChipElm.java
+@@ -174,6 +172,12 @@ abstract class ChipElm extends CircuitElm {
+ 		case SIDE_E: p.setPoint(x0, y0, 0, 1,  1, 0, xs-cspc2, 0);break;
+ 		}
+ 	    }
++	    if ((flags & FLAG_ROTATE) != 0) {
++	        int swap = xs; xs = ys; ys = swap;
++	    }
++	    rectPointsX = new int[] { xr, xr+xs, xr+xs, xr };
++	    rectPointsY = new int[] { yr, yr, yr+ys, yr+ys };
++	    setBbox(xr, yr, rectPointsX[2], rectPointsY[2]);
+ 	}
+ 	
+ 	// see if we can move pin to position xp, yp, and return the new position
+@@ -337,6 +341,11 @@ abstract class ChipElm extends CircuitElm {
+ 		ei.checkbox = new Checkbox("Flip Y", (flags & FLAG_FLIP_Y) != 0);
+ 		return ei;
+ 	    }
++	    if (n == 2) {
++		EditInfo ei = new EditInfo("", 0, -1, -1);
++		ei.checkbox = new Checkbox("Rotate", (flags & FLAG_ROTATE) != 0);
++		return ei;
++	    }
+ 	    return null;
+ 	}
+ 	public void setEditValue(int n, EditInfo ei) {
+@@ -348,6 +357,10 @@ abstract class ChipElm extends CircuitElm {
+ 		flags = ei.changeFlag(flags, FLAG_FLIP_Y);
+ 		setPoints();
+ 	    }
++	    if (n == 2) {
++		flags = ei.changeFlag(flags, FLAG_ROTATE);
++		setPoints();
++	    }
+ 	}
+ 	
+ 	static String writeBits(boolean[] data) {

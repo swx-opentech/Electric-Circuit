@@ -1,0 +1,65 @@
+[1mdiff --git a/src/com/lushprojects/circuitjs1/client/CapacitorElm.java b/src/com/lushprojects/circuitjs1/client/CapacitorElm.java[m
+[1mindex 4e869c6..3dd7e34 100644[m
+[1m--- a/src/com/lushprojects/circuitjs1/client/CapacitorElm.java[m
+[1m+++ b/src/com/lushprojects/circuitjs1/client/CapacitorElm.java[m
+[36m@@ -25,6 +25,7 @@[m [mpackage com.lushprojects.circuitjs1.client;[m
+	double initialVoltage;[m
+	Point plate1[], plate2[];[m
+	public static final int FLAG_BACK_EULER = 2;[m
+	[32mpublic static final int FLAG_PRESERVE_CHARGE = 1<<2;[m
+	public CapacitorElm(int xx, int yy) {[m
+	    super(xx, yy);[m
+	    capacitance = 1e-5;[m
+[36m@@ -41,6 +42,7 @@[m [mpackage com.lushprojects.circuitjs1.client;[m
+	    } catch (Exception e) {}[m
+	}[m
+	boolean isTrapezoidal() { return (flags & FLAG_BACK_EULER) == 0; }[m
+	[32mboolean preserveCharge() { return (flags & FLAG_PRESERVE_CHARGE) != 0; }[m
+	[m
+	void reset() {[m
+	    super.reset();[m
+[36m@@ -171,8 +173,8 @@[m [mpackage com.lushprojects.circuitjs1.client;[m
+	    getBasicInfo(arr);[m
+	    arr[3] = "C = " + getUnitText(capacitance, "F");[m
+	    arr[4] = "P = " + getUnitText(getPower(), "W");[m
+	    [31m//double v[m[32marr[5][m = [31mgetVoltageDiff();[m
+[31m	    //arr[4][m[32m"Q = " + getUnitText(capacitance*getVoltageDiff(), "C");[m
+[32m	    arr[6][m = "U = " + [31mgetUnitText(.5*capacitance*v*v,[m[32mgetUnitText(.5*capacitance*getVoltageDiff()*getVoltageDiff(),[m "J");
+	}[m
+	@Override[m
+	String getScopeText(int v) {[m
+[36m@@ -188,20 +190,30 @@[m [mpackage com.lushprojects.circuitjs1.client;[m
+	    }[m
+	    if (n == 2)[m
+		return new EditInfo("Initial Voltage (on Reset)", initialVoltage);[m
+	    [32mif (n == 3)[m
+[32m		return EditInfo.createCheckbox("Preserve Charge on Changes", preserveCharge());[m
+	    // if you add more things here, check PolarCapacitorElm[m
+[32mcheck PolarCapacitorElm![m
+	    return null;[m
+	}[m
+	public void setEditValue(int n, EditInfo ei) {[m
+	    if (n == 0) [32m{[m
+[32m		double charge = voltdiff * capacitance;[m
+		capacitance = (ei.value > 0) ? ei.value : 1e-12;[m
+		if [31m(n == 1) {[m
+[31m		if (ei.checkbox.getState())[m
+[31m		    flags &= ~FLAG_BACK_EULER;[m
+[31m		else[m
+[31m		    flags |= FLAG_BACK_EULER;[m[32m(preserveCharge())[m
+[32m		    voltdiff = charge/capacitance;[m
+	    }[m
+            [32mif (n == 1) {[m
+[32m        	// can't use changeFlag() here, flag is set when checkbox is off[m
+[32m        	if (ei.checkbox.getState())[m
+[32m        	    flags &= ~FLAG_BACK_EULER;[m
+[32m        	else[m
+[32m        	    flags |= FLAG_BACK_EULER;[m
+[32m            }[m
+	    if (n == 2)[m
+		initialVoltage = ei.value;[m
+	    [32mif (n == 3)[m
+[32m		flags = ei.changeFlag(flags, FLAG_PRESERVE_CHARGE);[m
+	}[m
+	int getShortcut() { return 'c'; }[m
+	public double getCapacitance() { return capacitance; }[m
